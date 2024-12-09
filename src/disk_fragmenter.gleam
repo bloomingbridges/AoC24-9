@@ -4,10 +4,6 @@ import gleam/io
 import gleam/list
 import gleam/string
 
-pub type DefragError {
-  NoNichesLeft
-}
-
 const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
 
 const example = "2333133121414131402"
@@ -76,7 +72,6 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
 
 pub fn defragment_disk(input: String) -> String {
   let graphemes = string.to_graphemes(input)
-  // io.debug(graphemes)
   let defragged = defrag(graphemes)
   string.join(defragged, with: "")
 }
@@ -84,8 +79,6 @@ pub fn defragment_disk(input: String) -> String {
 fn defrag(graphemes: List(String)) -> List(String) {
   let first_space_block_pos = find_first_space_block(graphemes, 0)
   let last_file_block_pos = find_last_file_block(graphemes, 0, 0)
-  // io.debug(first_space_block_pos)
-  // io.debug(last_file_block_pos)
   case first_space_block_pos < last_file_block_pos {
     True -> {
       plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
@@ -117,31 +110,12 @@ fn defrag(graphemes: List(String)) -> List(String) {
     }
     False -> graphemes
   }
-  // case find_intermittent_space(graphemes) {
-  //   Ok(position) -> {
-  //     plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
-  //     let updated_graphemes = graphemes
-  //   }
-  //   Error(NoNichesLeft) -> {
-  //     io.println("// OPERATION FINISHED")
-  //     graphemes
-  //   }
-  // }
 }
-
-// fn find_intermittent_space(list: List(String)) -> Result(Int, DefragError) {
-//   case list {
-//     [a, ..rest] -> {
-//       find_intermittent_space(rest)
-//     }
-//     [] -> Error(NoNichesLeft)
-//   }
-// }
 
 fn find_first_space_block(list: List(String), index: Int) -> Int {
   case list {
-    [current, ..rest] ->
-      case current == "." {
+    [first, ..rest] ->
+      case first == "." {
         True -> index
         False -> find_first_space_block(rest, index + 1)
       }
@@ -151,8 +125,8 @@ fn find_first_space_block(list: List(String), index: Int) -> Int {
 
 fn find_last_file_block(list: List(String), index: Int, last_pos: Int) -> Int {
   case list {
-    [current, ..rest] -> {
-      let updated_last_pos = case current == "." {
+    [first, ..rest] -> {
+      let updated_last_pos = case first == "." {
         True -> last_pos
         False -> index
       }
@@ -166,5 +140,22 @@ fn find_last_file_block(list: List(String), index: Int, last_pos: Int) -> Int {
 
 pub fn determine_checksum(input: String) {
   plog(input, "// OUTPUT:     ")
-  plog("69", "// CHECKSUM:   ")
+  let checksum = check(string.to_graphemes(input), 0, 0)
+  plog(int.to_string(checksum), "// CHECKSUM:   ")
+}
+
+fn check(list: List(String), sum: Int, index: Int) -> Int {
+  let file_id = case list.first(list) {
+    Ok(first_digit) ->
+      case int.base_parse(first_digit, 10) {
+        Ok(num) -> num
+        Error(Nil) -> 0
+      }
+    Error(Nil) -> 0
+  }
+  let updated_sum = sum + index * file_id
+  case list {
+    [_, ..rest] -> check(rest, updated_sum, index + 1)
+    [] -> sum
+  }
 }
