@@ -16,7 +16,8 @@ pub fn main() {
   |> plog("// READING:    ")
   |> convert_representation()
   |> plog("// CONVERTED:  ")
-  |> defrag()
+  |> defragment_disk()
+  |> determine_checksum()
 }
 
 /// Logs a String with a prefix ////////////////////////////////////////////////
@@ -24,6 +25,8 @@ pub fn plog(input: String, prefix: String) {
   io.println(prefix <> input)
   input
 }
+
+//　Conversion //////////////////////////////////////////////////////////////////
 
 pub fn convert_representation(input: String) -> String {
   expand(input, "", 0, True)
@@ -64,7 +67,19 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
   }
 }
 
-pub fn defrag(input: String) {
+// Defragmentation /////////////////////////////////////////////////////////////
+
+pub fn defragment_disk(input: String) {
   let graphemes = string.to_graphemes(input)
-  io.println("// DEFRAGGING: " <> string.join(graphemes, with: ""))
+  defrag(graphemes)
+}
+
+fn defrag(graphemes: List(String)) {
+  plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
+}
+
+// Checksum ////////////////////////////////////////////////////////////////////
+
+pub fn determine_checksum(_input: String) {
+  plog("69", "// CHECKSUM:   ")
 }
