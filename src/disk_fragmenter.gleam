@@ -1,7 +1,12 @@
 import gleam/bool
 import gleam/int
 import gleam/io
+import gleam/list
 import gleam/string
+
+pub type DefragError {
+  NoNichesLeft
+}
 
 const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
 
@@ -69,17 +74,97 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
 
 // Defragmentation /////////////////////////////////////////////////////////////
 
-pub fn defragment_disk(input: String) {
+pub fn defragment_disk(input: String) -> String {
   let graphemes = string.to_graphemes(input)
-  defrag(graphemes)
+  // io.debug(graphemes)
+  let defragged = defrag(graphemes)
+  string.join(defragged, with: "")
 }
 
-fn defrag(graphemes: List(String)) {
-  plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
+fn defrag(graphemes: List(String)) -> List(String) {
+  let first_space_block_pos = find_first_space_block(graphemes, 0)
+  let last_file_block_pos = find_last_file_block(graphemes, 0, 0)
+  // io.debug(first_space_block_pos)
+  // io.debug(last_file_block_pos)
+  case first_space_block_pos < last_file_block_pos {
+    True -> {
+      plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
+      let second_half = list.split(graphemes, last_file_block_pos)
+      let file_block_id = case list.first(second_half.1) {
+        Ok(id) -> id
+        Error(_) -> "-1"
+      }
+      let tmp_list =
+        list.flatten([
+          second_half.0,
+          ["."],
+          case list.rest(second_half.1) {
+            Ok(l) -> l
+            Error(_) -> []
+          },
+        ])
+      let first_half = list.split(tmp_list, first_space_block_pos)
+      let updated_graphemes =
+        list.flatten([
+          first_half.0,
+          [file_block_id],
+          case list.rest(first_half.1) {
+            Ok(l) -> l
+            Error(_) -> []
+          },
+        ])
+      defrag(updated_graphemes)
+    }
+    False -> graphemes
+  }
+  // case find_intermittent_space(graphemes) {
+  //   Ok(position) -> {
+  //     plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
+  //     let updated_graphemes = graphemes
+  //   }
+  //   Error(NoNichesLeft) -> {
+  //     io.println("// OPERATION FINISHED")
+  //     graphemes
+  //   }
+  // }
+}
+
+// fn find_intermittent_space(list: List(String)) -> Result(Int, DefragError) {
+//   case list {
+//     [a, ..rest] -> {
+//       find_intermittent_space(rest)
+//     }
+//     [] -> Error(NoNichesLeft)
+//   }
+// }
+
+fn find_first_space_block(list: List(String), index: Int) -> Int {
+  case list {
+    [current, ..rest] ->
+      case current == "." {
+        True -> index
+        False -> find_first_space_block(rest, index + 1)
+      }
+    [] -> index
+  }
+}
+
+fn find_last_file_block(list: List(String), index: Int, last_pos: Int) -> Int {
+  case list {
+    [current, ..rest] -> {
+      let updated_last_pos = case current == "." {
+        True -> last_pos
+        False -> index
+      }
+      find_last_file_block(rest, index + 1, updated_last_pos)
+    }
+    [] -> last_pos
+  }
 }
 
 // Checksum ////////////////////////////////////////////////////////////////////
 
-pub fn determine_checksum(_input: String) {
+pub fn determine_checksum(input: String) {
+  plog(input, "// OUTPUT:     ")
   plog("69", "// CHECKSUM:   ")
 }
