@@ -3,19 +3,20 @@ import gleam/int
 import gleam/io
 import gleam/string
 
+const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
+
 const example = "2333133121414131402"
 
 // const example = "12345"
 
 pub fn main() {
-  io.println(
-    "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////",
-  )
+  io.println(title)
   let input = example
-  io.println("// READING " <> input)
-  let converted = convert_representation(input)
-  io.println("// CONVERTED:  " <> converted)
-  let _defragmented = defrag(converted)
+  input
+  |> log("// READING:    ")
+  |> convert_representation()
+  |> log("// CONVERTED:  ")
+  |> defrag()
 }
 
 pub fn convert_representation(input: String) -> String {
@@ -59,6 +60,10 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
 
 pub fn defrag(input: String) {
   let graphemes = string.to_graphemes(input)
-  io.println("// DEFRAGGING: " <> input)
   io.println("// DEFRAGGING: " <> string.join(graphemes, with: ""))
+}
+
+pub fn log(input: String, prefix: String) {
+  io.println(prefix <> input)
+  input
 }
