@@ -13,10 +13,16 @@ pub fn main() {
   io.println(title)
   let input = example
   input
-  |> log("// READING:    ")
+  |> plog("// READING:    ")
   |> convert_representation()
-  |> log("// CONVERTED:  ")
+  |> plog("// CONVERTED:  ")
   |> defrag()
+}
+
+/// Logs a String with a prefix ////////////////////////////////////////////////
+pub fn plog(input: String, prefix: String) {
+  io.println(prefix <> input)
+  input
 }
 
 pub fn convert_representation(input: String) -> String {
@@ -61,9 +67,4 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
 pub fn defrag(input: String) {
   let graphemes = string.to_graphemes(input)
   io.println("// DEFRAGGING: " <> string.join(graphemes, with: ""))
-}
-
-pub fn log(input: String, prefix: String) {
-  io.println(prefix <> input)
-  input
 }
