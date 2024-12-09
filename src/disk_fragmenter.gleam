@@ -3,6 +3,7 @@ import gleam/int
 import gleam/io
 import gleam/list
 import gleam/string
+import simplifile
 
 const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
 
@@ -12,12 +13,20 @@ const example = "2333133121414131402"
 
 pub fn main() {
   io.println(title)
-  let input = example
+  // let input = example
+  let input = case simplifile.read("./src/input.txt") {
+    Ok(file) -> file
+    Error(error) -> {
+      io.debug(error)
+      example
+    }
+  }
   input
   |> plog("// READING:    ")
   |> convert_representation()
   |> plog("// CONVERTED:  ")
   |> defragment_disk()
+  |> plog("// DEFRAGGED:  ")
   |> determine_checksum()
 }
 
@@ -71,6 +80,7 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
 // Defragmentation /////////////////////////////////////////////////////////////
 
 pub fn defragment_disk(input: String) -> String {
+  io.println("// DEFRAGMENTING..")
   let graphemes = string.to_graphemes(input)
   let defragged = defrag(graphemes)
   string.join(defragged, with: "")
@@ -81,7 +91,7 @@ fn defrag(graphemes: List(String)) -> List(String) {
   let last_file_block_pos = find_last_file_block(graphemes, 0, 0)
   case first_space_block_pos < last_file_block_pos {
     True -> {
-      plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
+      // plog(string.join(graphemes, with: ""), "// DEFRAGGING: ")
       let second_half = list.split(graphemes, last_file_block_pos)
       let file_block_id = case list.first(second_half.1) {
         Ok(id) -> id
