@@ -14,7 +14,8 @@ pub fn main() {
   let input = example
   io.println("// READING " <> input)
   let converted = convert_representation(input)
-  io.println("// CONVERTED: " <> converted)
+  io.println("// CONVERTED:  " <> converted)
+  let _defragmented = defrag(converted)
 }
 
 pub fn convert_representation(input: String) -> String {
@@ -54,4 +55,10 @@ fn expand_segment(id: Int, times: Int, is_file: Bool) -> String {
     True -> string.repeat(int.to_string(id), times)
     False -> string.repeat(".", times)
   }
+}
+
+pub fn defrag(input: String) {
+  let graphemes = string.to_graphemes(input)
+  io.println("// DEFRAGGING: " <> input)
+  io.println("// DEFRAGGING: " <> string.join(graphemes, with: ""))
 }
