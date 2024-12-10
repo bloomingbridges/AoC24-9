@@ -11,6 +11,13 @@ const example = "2333133121414131402"
 
 // const example = "12345"
 
+const whole_files = False
+
+pub type Segment {
+  File(size: Int, id: Int)
+  Free(size: Int)
+}
+
 pub fn main() {
   io.println(title)
   let input = case simplifile.read("./src/input.txt") {
@@ -20,8 +27,9 @@ pub fn main() {
       example
     }
   }
-  io.println("// READING:    " <> input)
+  // io.println("// READING:    " <> input)
   let converted_input = convert_representation(input)
+  // io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
   |> defragment_disk()
@@ -30,23 +38,30 @@ pub fn main() {
 }
 
 /// Logs a List(String) with a given String prefix /////////////////////////////
-pub fn plog(input: List(String), prefix: String) -> List(String) {
-  io.println(prefix <> string.join(input, ""))
+pub fn plog(input: List(Segment), prefix: String) -> List(Segment) {
+  let seg_string =
+    list.map(input, fn(seg) {
+      case seg {
+        File(size, id) -> string.repeat(int.to_string(id), size)
+        Free(size) -> string.repeat(".", size)
+      }
+    })
+  io.println(prefix <> string.join(seg_string, ""))
   input
 }
 
 //　Conversion //////////////////////////////////////////////////////////////////
 
-pub fn convert_representation(input: String) -> List(String) {
+pub fn convert_representation(input: String) -> List(Segment) {
   expand(string.to_graphemes(input), [], 0, True)
 }
 
 fn expand(
   input: List(String),
-  accumulator: List(String),
+  accumulator: List(Segment),
   id: Int,
   is_file: Bool,
-) -> List(String) {
+) -> List(Segment) {
   case list.first(input) {
     Ok(char) -> {
       let block_size = case int.base_parse(char, 10) {
@@ -55,9 +70,13 @@ fn expand(
       }
       case list.rest(input) {
         Ok(tail) -> {
+          let seg = case is_file {
+            True -> File(block_size, id)
+            False -> Free(block_size)
+          }
           expand(
             tail,
-            list.append(accumulator, expand_segment(id, block_size, is_file)),
+            list.append(accumulator, expand_segment(seg)),
             case is_file {
               True -> id + 1
               False -> id
@@ -72,75 +91,89 @@ fn expand(
   }
 }
 
-fn expand_segment(id: Int, times: Int, is_file: Bool) -> List(String) {
-  case is_file {
-    True -> list.repeat(int.to_string(id), times)
-    False -> list.repeat(".", times)
+fn expand_segment(seg: Segment) -> List(Segment) {
+  case whole_files {
+    True -> {
+      case seg {
+        File(_, _) -> [seg]
+        Free(_) -> [seg]
+      }
+    }
+    False -> {
+      case seg {
+        File(size, id) -> list.repeat(File(1, id), size)
+        Free(size) -> list.repeat(Free(1), size)
+      }
+    }
   }
 }
 
 // Defragmentation /////////////////////////////////////////////////////////////
 
-pub fn defragment_disk(input: List(String)) -> List(String) {
+pub fn defragment_disk(input: List(Segment)) -> List(Segment) {
   io.println("// DEFRAGMENTING..")
   defrag(input)
 }
 
-fn defrag(graphemes: List(String)) -> List(String) {
-  let first_space_block_pos = find_first_space_block(graphemes, 0)
-  let last_file_block_pos = find_last_file_block(graphemes, 0, 0)
+fn defrag(segments: List(Segment)) -> List(Segment) {
+  let first_space_block_pos = find_first_free_segment(segments, 0)
+  let last_file_block_pos = find_last_file_segment(segments, 0, 0)
   case first_space_block_pos < last_file_block_pos {
     True -> {
-      // plog(graphemes, "// DEFRAGGING: ")
-      let second_half = list.split(graphemes, last_file_block_pos)
+      // plog(segments, "// DEFRAGGING: ")
+      let second_half = list.split(segments, last_file_block_pos)
       let file_block_id = case list.first(second_half.1) {
-        Ok(id) -> id
-        Error(_) -> "-1"
+        Ok(file) ->
+          case file {
+            File(_, id) -> id
+            _ -> -1
+          }
+        Error(_) -> -1
       }
       let tmp_list =
         list.flatten([
           second_half.0,
-          ["."],
+          [Free(1)],
           case list.rest(second_half.1) {
             Ok(l) -> l
             Error(_) -> []
           },
         ])
       let first_half = list.split(tmp_list, first_space_block_pos)
-      let updated_graphemes =
+      let updated_segments =
         list.flatten([
           first_half.0,
-          [file_block_id],
+          [File(1, file_block_id)],
           case list.rest(first_half.1) {
             Ok(l) -> l
             Error(_) -> []
           },
         ])
-      defrag(updated_graphemes)
+      defrag(updated_segments)
     }
-    False -> graphemes
+    False -> segments
   }
 }
 
-fn find_first_space_block(list: List(String), index: Int) -> Int {
+fn find_first_free_segment(list: List(Segment), index: Int) -> Int {
   case list {
     [first, ..rest] ->
-      case first == "." {
-        True -> index
-        False -> find_first_space_block(rest, index + 1)
+      case first {
+        Free(_) -> index
+        File(_, _) -> find_first_free_segment(rest, index + 1)
       }
     [] -> index
   }
 }
 
-fn find_last_file_block(list: List(String), index: Int, last_pos: Int) -> Int {
+fn find_last_file_segment(list: List(Segment), index: Int, last_pos: Int) -> Int {
   case list {
     [first, ..rest] -> {
-      let updated_last_pos = case first == "." {
-        True -> last_pos
-        False -> index
+      let updated_last_pos = case first {
+        Free(_) -> last_pos
+        File(_, _) -> index
       }
-      find_last_file_block(rest, index + 1, updated_last_pos)
+      find_last_file_segment(rest, index + 1, updated_last_pos)
     }
     [] -> last_pos
   }
@@ -148,19 +181,31 @@ fn find_last_file_block(list: List(String), index: Int, last_pos: Int) -> Int {
 
 // Checksum ////////////////////////////////////////////////////////////////////
 
-pub fn determine_checksum(input: List(String)) {
+pub fn determine_checksum(input: List(Segment)) {
   plog(input, "// OUTPUT:     ")
-  let checksum = check(input, 0, 0)
+  let checksum = check(map_occupied_space(input, []), 0, 0)
   io.println("// CHECKSUM:   " <> int.to_string(checksum))
 }
 
-fn check(list: List(String), sum: Int, index: Int) -> Int {
-  let file_id = case list.first(list) {
-    Ok(first_digit) ->
-      case int.base_parse(first_digit, 10) {
-        Ok(num) -> num
-        Error(Nil) -> 0
+fn map_occupied_space(input: List(Segment), accumulator: List(Int)) -> List(Int) {
+  case input {
+    [first, ..rest] ->
+      case first {
+        File(size, id) -> {
+          map_occupied_space(
+            rest,
+            list.append(accumulator, list.repeat(id, size)),
+          )
+        }
+        Free(_size) -> accumulator
       }
+    [] -> accumulator
+  }
+}
+
+fn check(list: List(Int), sum: Int, index: Int) -> Int {
+  let file_id = case list.first(list) {
+    Ok(first) -> first
     Error(Nil) -> 0
   }
   let updated_sum = sum + index * file_id
