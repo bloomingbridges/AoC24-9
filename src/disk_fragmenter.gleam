@@ -7,11 +7,11 @@ import simplifile
 
 const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
 
-// const example = "2333133121414131402"
+const example = "2333133121414131402"
 
 // const example = "12345"
 
-const example = "1234649462611144453037831447782650154"
+// const example = "123464946261114445303783144778265015"
 
 const whole_files = True
 
@@ -29,11 +29,12 @@ pub fn main() {
   io.println("// READING:    " <> input)
   let highest_id = determine_highest_file_id(input)
   let converted_input = convert_representation(input)
-  // io.debug(converted_input)
+  io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
   |> defragment_disk(highest_id)
   |> plog("// DEFRAGGED:  ")
+  |> io.debug()
   |> determine_checksum()
 }
 
@@ -134,7 +135,7 @@ fn defrag(segments: List(Segment)) -> List(Segment) {
   let last_file_block_pos = find_last_file_segment(segments, 0, 0)
   case first_space_block_pos < last_file_block_pos {
     True -> {
-      plog(segments, "// DEFRAGGING: ")
+      // plog(segments, "// DEFRAGGING: ")
       let second_half = list.split(segments, last_file_block_pos)
       let file_block_id = case list.first(second_half.1) {
         Ok(file) ->
@@ -194,7 +195,9 @@ fn defrag_carefully(segments: List(Segment), file_id: Int) -> List(Segment) {
               #(seg_info.0, File(seg_info.1, file_id)),
               #(suitable_space.0, Free(suitable_space.1)),
             )
-          defrag_carefully(updated_segments, file_id - 1)
+          // TODO Consolidate Free space
+          let polished_segments = consolidate_free_space(updated_segments)
+          defrag_carefully(polished_segments, file_id - 1)
         }
         False -> defrag_carefully(segments, file_id - 1)
       }
@@ -246,6 +249,29 @@ fn move_file_block(
     }
   }
   updated_segments
+}
+
+fn consolidate_free_space(segments: List(Segment)) -> List(Segment) {
+  segments
+}
+
+fn consolidate(segments: List(Segment), first: Int, last: Int) -> List(Segment) {
+  let first_split = list.split(segments, first)
+  let start = first_split.0
+  let second_split = list.split(first_split.1, last)
+  let end = second_split.1
+  let combined_free_space = case
+    second_split.0
+    |> list.map(fn(seg) { seg.size })
+    |> list.reduce(fn(acc, s) { acc + s })
+  {
+    Ok(acc) -> acc
+    Error(Nil) -> 0
+  }
+  case combined_free_space > 0 {
+    True -> list.flatten([start, [Free(combined_free_space)], end])
+    False -> list.flatten([start, end])
+  }
 }
 
 fn find_first_free_segment(list: List(Segment), index: Int) -> Int {
