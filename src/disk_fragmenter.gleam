@@ -11,7 +11,7 @@ const example = "2333133121414131402"
 
 // const example = "12345"
 
-const whole_files = False
+const whole_files = True
 
 pub type Segment {
   File(size: Int, id: Int)
@@ -29,7 +29,7 @@ pub fn main() {
   }
   io.println("// READING:    " <> input)
   let converted_input = convert_representation(input)
-  io.debug(converted_input)
+  // io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
   |> defragment_disk()
@@ -111,8 +111,19 @@ fn expand_segment(seg: Segment) -> List(Segment) {
 // Defragmentation /////////////////////////////////////////////////////////////
 
 pub fn defragment_disk(input: List(Segment)) -> List(Segment) {
-  io.println("// DEFRAGMENTING..")
-  defrag(input)
+  case whole_files {
+    True -> {
+      io.println("// DEFRAGMENTING CAREFULLY..")
+      let last_file_segment_pos = find_last_file_segment(input, 0, 0)
+      let highest_file_id = determine_highest_id(input, last_file_segment_pos)
+      io.println("// HIGHEST ID: " <> int.to_string(highest_file_id))
+      defrag_carefully(input, highest_file_id)
+    }
+    False -> {
+      io.println("// DEFRAGMENTING..")
+      defrag(input)
+    }
+  }
 }
 
 fn defrag(segments: List(Segment)) -> List(Segment) {
@@ -155,6 +166,85 @@ fn defrag(segments: List(Segment)) -> List(Segment) {
   }
 }
 
+fn defrag_carefully(segments: List(Segment), file_id: Int) -> List(Segment) {
+  case file_id >= 0 {
+    True -> {
+      plog(segments, "// DEFRAGGING: ")
+      let seg_info = case find_file_segment(segments, file_id, 0) {
+        Ok(info) -> info
+        Error(_) -> #(-1, 0)
+      }
+      let suitable_space = case
+        find_free_segment(segments, seg_info.1, 1, seg_info.0)
+      {
+        Ok(info) -> info
+        Error(_) -> {
+          // io.println("// ERROR: No free segment found")
+          #(-1, 0)
+        }
+      }
+      case suitable_space.0 > 0 {
+        True -> {
+          let updated_segments =
+            move_file_block(
+              segments,
+              #(seg_info.0, File(seg_info.1, file_id)),
+              #(suitable_space.0, Free(suitable_space.1)),
+            )
+          defrag_carefully(updated_segments, file_id - 1)
+        }
+        False -> defrag_carefully(segments, file_id - 1)
+      }
+    }
+    False -> segments
+  }
+}
+
+fn move_file_block(
+  segments: List(Segment),
+  file_block: #(Int, Segment),
+  free_block: #(Int, Segment),
+) -> List(Segment) {
+  // io.println("// Attempting to move file block into suitable space")
+  let second_half = list.split(segments, file_block.0)
+  let list_minus_file =
+    list.flatten([
+      second_half.0,
+      [Free({ file_block.1 }.size)],
+      case list.rest(second_half.1) {
+        Ok(l) -> l
+        Error(_) -> []
+      },
+    ])
+  let first_half = list.split(list_minus_file, free_block.0 - 1)
+  let remaining_gap = { free_block.1 }.size - { file_block.1 }.size
+  let updated_segments = case remaining_gap > 0 {
+    True -> {
+      // io.println("// GAP REMAINING")
+      list.flatten([
+        first_half.0,
+        [file_block.1, Free(remaining_gap)],
+        case list.rest(first_half.1) {
+          Ok(l) -> l
+          Error(_) -> []
+        },
+      ])
+    }
+    False -> {
+      // io.println("// NO GAP")
+      list.flatten([
+        first_half.0,
+        [file_block.1],
+        case list.rest(first_half.1) {
+          Ok(l) -> l
+          Error(_) -> []
+        },
+      ])
+    }
+  }
+  updated_segments
+}
+
 fn find_first_free_segment(list: List(Segment), index: Int) -> Int {
   case list {
     [first, ..rest] ->
@@ -179,10 +269,80 @@ fn find_last_file_segment(list: List(Segment), index: Int, last_pos: Int) -> Int
   }
 }
 
+fn find_file_segment(
+  list: List(Segment),
+  search_id: Int,
+  index: Int,
+) -> Result(#(Int, Int), Nil) {
+  case list {
+    [seg, ..rest] -> {
+      case seg {
+        File(size, id) -> {
+          case id == search_id {
+            True -> Ok(#(index, size))
+            False -> find_file_segment(rest, search_id, index + 1)
+          }
+        }
+        Free(_) -> find_file_segment(rest, search_id, index + 1)
+      }
+    }
+    [] -> Error(Nil)
+  }
+}
+
+fn find_free_segment(
+  list: List(Segment),
+  space_required: Int,
+  index: Int,
+  max_index: Int,
+) -> Result(#(Int, Int), Nil) {
+  case index < max_index {
+    True -> {
+      // io.println(
+      //   "// Looking for "
+      //   <> int.to_string(space_required)
+      //   <> " block(s) of free space",
+      // )
+      case list {
+        [seg, ..rest] ->
+          case seg {
+            Free(size) -> {
+              // io.println("// Found a free segment: " <> int.to_string(size))
+              case space_required <= size {
+                True -> {
+                  // io.println("// IT'S A MATCH!")
+                  Ok(#(index, size))
+                }
+                False ->
+                  find_free_segment(rest, space_required, index + 1, max_index)
+              }
+            }
+            File(_, _) ->
+              find_free_segment(rest, space_required, index + 1, max_index)
+          }
+        [] -> Error(Nil)
+      }
+    }
+    False -> Error(Nil)
+  }
+}
+
+fn determine_highest_id(list: List(Segment), position: Int) -> Int {
+  let split_list = list.split(list, at: position)
+  case split_list.1 {
+    [last, ..] | [last] ->
+      case last {
+        File(_, id) -> id
+        Free(_) -> -1
+      }
+    [] -> -1
+  }
+}
+
 // Checksum ////////////////////////////////////////////////////////////////////
 
 pub fn determine_checksum(input: List(Segment)) {
-  plog(input, "// OUTPUT:     ")
+  // plog(input, "// OUTPUT:     ")
   let checksum = check(map_occupied_space(input, []), 0, 0)
   io.println("// CHECKSUM:   " <> int.to_string(checksum))
 }
