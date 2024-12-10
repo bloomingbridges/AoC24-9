@@ -7,9 +7,11 @@ import simplifile
 
 const title = "// Advent of Code 2024 - Day 9: Disk Fragmenter ////////////////////////////////"
 
-const example = "2333133121414131402"
+// const example = "2333133121414131402"
 
 // const example = "12345"
+
+const example = "1234649462611144453037831447782650154"
 
 const whole_files = True
 
@@ -25,11 +27,12 @@ pub fn main() {
     Error(_error) -> example
   }
   io.println("// READING:    " <> input)
+  let highest_id = determine_highest_file_id(input)
   let converted_input = convert_representation(input)
   // io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
-  |> defragment_disk()
+  |> defragment_disk(highest_id)
   |> plog("// DEFRAGGED:  ")
   |> determine_checksum()
 }
@@ -107,12 +110,15 @@ fn expand_segment(seg: Segment) -> List(Segment) {
 
 // Defragmentation /////////////////////////////////////////////////////////////
 
-pub fn defragment_disk(input: List(Segment)) -> List(Segment) {
+pub fn defragment_disk(
+  input: List(Segment),
+  highest_file_id: Int,
+) -> List(Segment) {
   case whole_files {
     True -> {
       io.println("// DEFRAGMENTING CAREFULLY..")
-      let last_file_segment_pos = find_last_file_segment(input, 0, 0)
-      let highest_file_id = determine_highest_id(input, last_file_segment_pos)
+      // let last_file_segment_pos = find_last_file_segment(input, 0, 0)
+      // let highest_file_id = determine_highest_id(input, last_file_segment_pos)
       // io.println("// HIGHEST ID: " <> int.to_string(highest_file_id))
       defrag_carefully(input, highest_file_id)
     }
@@ -324,16 +330,27 @@ fn find_free_segment(
   }
 }
 
-fn determine_highest_id(list: List(Segment), position: Int) -> Int {
-  let split_list = list.split(list, at: position)
-  case split_list.1 {
-    [last, ..] | [last] ->
-      case last {
-        File(_, id) -> id
-        Free(_) -> -1
-      }
-    [] -> -1
+// @deprecated("Use the improved function `determine_highest_file_id`")
+// fn determine_highest_id(list: List(Segment), position: Int) -> Int {
+//   let split_list = list.split(list, at: position)
+//   case split_list.1 {
+//     [last, ..] | [last] ->
+//       case last {
+//         File(_, id) -> id
+//         Free(_) -> -1
+//       }
+//     [] -> -1
+//   }
+// }
+
+fn determine_highest_file_id(input: String) -> Int {
+  let length = string.length(input)
+  let highest = case int.is_odd(length) {
+    True -> { { length - 1 } / 2 } + 1
+    False -> length / 2
   }
+  io.println("// HIGHEST ID: " <> int.to_string(highest - 1))
+  highest - 1
 }
 
 // Checksum ////////////////////////////////////////////////////////////////////
