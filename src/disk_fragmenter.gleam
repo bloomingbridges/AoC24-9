@@ -22,10 +22,7 @@ pub fn main() {
   io.println(title)
   let input = case simplifile.read("./src/inputz.txt") {
     Ok(file) -> file
-    Error(error) -> {
-      io.debug(error)
-      example
-    }
+    Error(_error) -> example
   }
   io.println("// READING:    " <> input)
   let converted_input = convert_representation(input)
@@ -116,7 +113,7 @@ pub fn defragment_disk(input: List(Segment)) -> List(Segment) {
       io.println("// DEFRAGMENTING CAREFULLY..")
       let last_file_segment_pos = find_last_file_segment(input, 0, 0)
       let highest_file_id = determine_highest_id(input, last_file_segment_pos)
-      io.println("// HIGHEST ID: " <> int.to_string(highest_file_id))
+      // io.println("// HIGHEST ID: " <> int.to_string(highest_file_id))
       defrag_carefully(input, highest_file_id)
     }
     False -> {
@@ -167,7 +164,7 @@ fn defrag(segments: List(Segment)) -> List(Segment) {
 }
 
 fn defrag_carefully(segments: List(Segment), file_id: Int) -> List(Segment) {
-  case file_id >= 0 {
+  case file_id >= 1 {
     True -> {
       plog(segments, "// DEFRAGGING: ")
       let seg_info = case find_file_segment(segments, file_id, 0) {
