@@ -20,16 +20,16 @@ pub type Segment {
 
 pub fn main() {
   io.println(title)
-  let input = case simplifile.read("./src/input.txt") {
+  let input = case simplifile.read("./src/inputz.txt") {
     Ok(file) -> file
     Error(error) -> {
       io.debug(error)
       example
     }
   }
-  // io.println("// READING:    " <> input)
+  io.println("// READING:    " <> input)
   let converted_input = convert_representation(input)
-  // io.debug(converted_input)
+  io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
   |> defragment_disk()
@@ -120,7 +120,7 @@ fn defrag(segments: List(Segment)) -> List(Segment) {
   let last_file_block_pos = find_last_file_segment(segments, 0, 0)
   case first_space_block_pos < last_file_block_pos {
     True -> {
-      // plog(segments, "// DEFRAGGING: ")
+      plog(segments, "// DEFRAGGING: ")
       let second_half = list.split(segments, last_file_block_pos)
       let file_block_id = case list.first(second_half.1) {
         Ok(file) ->
@@ -197,7 +197,12 @@ fn map_occupied_space(input: List(Segment), accumulator: List(Int)) -> List(Int)
             list.append(accumulator, list.repeat(id, size)),
           )
         }
-        Free(_size) -> accumulator
+        Free(size) -> {
+          map_occupied_space(
+            rest,
+            list.append(accumulator, list.repeat(0, size)),
+          )
+        }
       }
     [] -> accumulator
   }
