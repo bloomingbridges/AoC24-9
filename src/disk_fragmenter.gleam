@@ -252,10 +252,76 @@ fn move_file_block(
 }
 
 fn consolidate_free_space(segments: List(Segment)) -> List(Segment) {
-  segments
+  find_consecutive_free_space(segments, segments, 0, 0, False)
+}
+
+fn find_consecutive_free_space(
+  segments: List(Segment),
+  tail: List(Segment),
+  index: Int,
+  first: Int,
+  is_free: Bool,
+) -> List(Segment) {
+  case tail {
+    [seg, next, ..rest] ->
+      case seg, next {
+        File(_, _), File(_, _) -> {
+          // Still a file, keep going
+          find_consecutive_free_space(segments, rest, index + 1, first, False)
+        }
+        File(_, _), Free(_) -> {
+          // Encountered first free block, keep going
+          find_consecutive_free_space(
+            segments,
+            rest,
+            index + 1,
+            index + 1,
+            True,
+          )
+        }
+        Free(_), Free(_) -> {
+          // Two consecutive block, keep going
+          find_consecutive_free_space(segments, rest, index + 1, first, True)
+        }
+        Free(_), File(_, _) -> {
+          case is_free && { index + 1 } - first > 1 {
+            True -> {
+              io.println(
+                "// CONSECUTIVE FREE SPACE ENCOUNTERED AT "
+                <> int.to_string(first),
+              )
+              // Perform operation
+              let updated_segments = consolidate(segments, first, index)
+              find_consecutive_free_space(
+                updated_segments,
+                updated_segments,
+                0,
+                first,
+                True,
+              )
+            }
+            False ->
+              find_consecutive_free_space(
+                segments,
+                rest,
+                index + 1,
+                first,
+                False,
+              )
+          }
+        }
+      }
+    _ -> segments
+  }
 }
 
 fn consolidate(segments: List(Segment), first: Int, last: Int) -> List(Segment) {
+  io.println(
+    "// CONSOLIDATING FREE SPACE FROM "
+    <> int.to_string(first)
+    <> " TO "
+    <> int.to_string(last),
+  )
   let first_split = list.split(segments, first)
   let start = first_split.0
   let second_split = list.split(first_split.1, last)
