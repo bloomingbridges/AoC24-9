@@ -22,19 +22,19 @@ pub type Segment {
 
 pub fn main() {
   io.println(title)
-  let input = case simplifile.read("./src/inputz.txt") {
+  let input = case simplifile.read("./src/input.txt") {
     Ok(file) -> file
     Error(_error) -> example
   }
-  io.println("// READING:    " <> input)
+  // io.println("// READING:    " <> input)
   let highest_id = determine_highest_file_id(input)
   let converted_input = convert_representation(input)
   io.debug(converted_input)
   converted_input
   |> plog("// CONVERTED:  ")
   |> defragment_disk(highest_id)
-  |> plog("// DEFRAGGED:  ")
-  |> io.debug()
+  // |> plog("// DEFRAGGED:  ")
+  // |> io.debug()
   |> determine_checksum()
 }
 
@@ -173,7 +173,7 @@ fn defrag(segments: List(Segment)) -> List(Segment) {
 fn defrag_carefully(segments: List(Segment), file_id: Int) -> List(Segment) {
   case file_id >= 1 {
     True -> {
-      plog(segments, "// DEFRAGGING: ")
+      // plog(segments, "// DEFRAGGING: ")
       let seg_info = case find_file_segment(segments, file_id, 0) {
         Ok(info) -> info
         Error(_) -> #(-1, 0)
@@ -312,7 +312,6 @@ fn find_consecutive_free_space(
 }
 
 fn consolidate(segments: List(Segment), position: Int) -> List(Segment) {
-  io.debug(segments)
   io.println(
     "// CONSOLIDATING FREE SPACE FROM "
     <> int.to_string(position)
@@ -350,7 +349,7 @@ fn consolidate(segments: List(Segment), position: Int) -> List(Segment) {
   //   Ok(acc) -> acc
   //   Error(Nil) -> 0
   // }
-  let combined_free_space = case a + b > 9 {
+  let combined_free_space = case a + b > 9999 * 9 {
     True -> panic as "Suspiciously large amount of free space"
     False -> a + b
   }
@@ -471,7 +470,9 @@ fn determine_highest_file_id(input: String) -> Int {
 
 pub fn determine_checksum(input: List(Segment)) {
   // plog(input, "// OUTPUT:     ")
-  let checksum = check(map_occupied_space(input, []), 0, 0)
+  let occupied_space = map_occupied_space(input, [])
+  io.debug(occupied_space)
+  let checksum = check(occupied_space, 0, 0)
   io.println("// CHECKSUM:   " <> int.to_string(checksum))
 }
 
@@ -504,6 +505,6 @@ fn check(list: List(Int), sum: Int, index: Int) -> Int {
   let updated_sum = sum + index * file_id
   case list {
     [_, ..rest] -> check(rest, updated_sum, index + 1)
-    [] -> sum
+    [] -> updated_sum
   }
 }
