@@ -211,7 +211,7 @@ fn move_file_block(
   file_block: #(Int, Segment),
   free_block: #(Int, Segment),
 ) -> List(Segment) {
-  // io.println("// Attempting to move file block into suitable space")
+  io.println("// Attempting to move file block into suitable space")
   let second_half = list.split(segments, file_block.0)
   let list_minus_file =
     list.flatten([
@@ -222,11 +222,13 @@ fn move_file_block(
         Error(_) -> []
       },
     ])
+  // io.print("// LIST - File: ")
+  // io.debug(list_minus_file)
   let first_half = list.split(list_minus_file, free_block.0 - 1)
   let remaining_gap = { free_block.1 }.size - { file_block.1 }.size
   let updated_segments = case remaining_gap > 0 {
     True -> {
-      // io.println("// GAP REMAINING")
+      io.println("// GAP REMAINING")
       list.flatten([
         first_half.0,
         [file_block.1, Free(remaining_gap)],
@@ -252,92 +254,112 @@ fn move_file_block(
 }
 
 fn consolidate_free_space(segments: List(Segment)) -> List(Segment) {
-  find_consecutive_free_space(segments, segments, 0, 0, False)
+  find_consecutive_free_space(segments, segments, 0)
 }
 
 fn find_consecutive_free_space(
   segments: List(Segment),
   tail: List(Segment),
   index: Int,
-  first: Int,
-  is_free: Bool,
 ) -> List(Segment) {
   case tail {
     [seg, next, ..rest] ->
       case seg, next {
-        File(_, _), File(_, _) -> {
-          // Still a file, keep going
-          find_consecutive_free_space(segments, rest, index + 1, first, False)
-        }
-        File(_, _), Free(_) -> {
-          // Encountered first free block, keep going
-          find_consecutive_free_space(
-            segments,
-            rest,
-            index + 1,
-            index + 1,
-            True,
-          )
-        }
+        // File(_, _), File(_, _) -> {
+        //   // Still a file, keep going
+        //   find_consecutive_free_space(segments, rest, index + 1)
+        // }
+        // File(_, _), Free(_) -> {
+        //   // Encountered first free block, keep going
+        //   find_consecutive_free_space(
+        //     segments,
+        //     rest,
+        //     index + 1,
+        //     index + 1,
+        //     True,
+        //   )
+        // }
         Free(_), Free(_) -> {
-          // Two consecutive block, keep going
-          find_consecutive_free_space(segments, rest, index + 1, first, True)
+          // Two consecutive blocks, perform operation
+          io.print("// Two consecutive blocks encountered! ")
+          let updated_segments = consolidate(segments, index)
+          find_consecutive_free_space(updated_segments, updated_segments, 0)
         }
-        Free(_), File(_, _) -> {
-          case is_free && { index + 1 } - first > 1 {
-            True -> {
-              io.println(
-                "// CONSECUTIVE FREE SPACE ENCOUNTERED AT "
-                <> int.to_string(first),
-              )
-              // Perform operation
-              let updated_segments = consolidate(segments, first, index)
-              find_consecutive_free_space(
-                updated_segments,
-                updated_segments,
-                0,
-                first,
-                True,
-              )
-            }
-            False ->
-              find_consecutive_free_space(
-                segments,
-                rest,
-                index + 1,
-                first,
-                False,
-              )
-          }
+        _, _ -> {
+          // Anything else, keep going
+          // io.println(".")
+          find_consecutive_free_space(segments, rest, index + 2)
         }
+        // Free(_), File(_, _) -> {
+        //   case is_free && { index + 1 } - first > 1 {
+        //     True -> {
+        //       io.println(
+        //         "// CONSECUTIVE FREE SPACE ENCOUNTERED AT "
+        //         <> int.to_string(first),
+        //       )
+
+        //     }
+        //     False ->
+        //       find_consecutive_free_space(
+        //         segments,
+        //         rest,
+        //         index + 1
+        //       )
+        // }
       }
     _ -> segments
   }
 }
 
-fn consolidate(segments: List(Segment), first: Int, last: Int) -> List(Segment) {
+fn consolidate(segments: List(Segment), position: Int) -> List(Segment) {
+  io.debug(segments)
   io.println(
     "// CONSOLIDATING FREE SPACE FROM "
-    <> int.to_string(first)
+    <> int.to_string(position)
     <> " TO "
-    <> int.to_string(last),
+    <> int.to_string(position + 1),
   )
-  let first_split = list.split(segments, first)
+  let first_split = list.split(segments, position)
   let start = first_split.0
-  let second_split = list.split(first_split.1, last)
-  let end = second_split.1
-  let combined_free_space = case
-    second_split.0
-    |> list.map(fn(seg) { seg.size })
-    |> list.reduce(fn(acc, s) { acc + s })
-  {
-    Ok(acc) -> acc
-    Error(Nil) -> 0
+  let a = case list.first(first_split.1) {
+    Ok(seg) ->
+      case seg {
+        Free(size) -> size
+        File(_, _) -> 0
+      }
+    Error(_) -> 0
   }
-  case combined_free_space > 0 {
-    True -> list.flatten([start, [Free(combined_free_space)], end])
-    False -> list.flatten([start, end])
+  let second_split = list.split(segments, position + 1)
+  let b = case list.first(second_split.1) {
+    Ok(seg) ->
+      case seg {
+        Free(size) -> size
+        File(_, _) -> 0
+      }
+    Error(_) -> 0
   }
+  let end = case list.rest(second_split.1) {
+    Ok(l) -> l
+    Error(_) -> []
+  }
+  // let combined_free_space = case
+  //   second_split.0
+  //   |> list.map(fn(seg) { seg.size })
+  //   |> list.reduce(fn(acc, s) { acc + s })
+  // {
+  //   Ok(acc) -> acc
+  //   Error(Nil) -> 0
+  // }
+  let combined_free_space = case a + b > 9 {
+    True -> panic as "Suspiciously large amount of free space"
+    False -> a + b
+  }
+  io.println("// COMBINED FREE SPACE: " <> int.to_string(combined_free_space))
+  // io.print("// START: ")
+  // io.debug(start)
+  // io.print("// END: ")
+  // io.debug(end)
+  list.flatten([start, [Free(combined_free_space)], end])
 }
 
 fn find_first_free_segment(list: List(Segment), index: Int) -> Int {
@@ -441,7 +463,7 @@ fn determine_highest_file_id(input: String) -> Int {
     True -> { { length - 1 } / 2 } + 1
     False -> length / 2
   }
-  io.println("// HIGHEST ID: " <> int.to_string(highest - 1))
+  // io.println("// HIGHEST ID: " <> int.to_string(highest - 1))
   highest - 1
 }
 
